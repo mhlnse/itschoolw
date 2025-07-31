@@ -1,44 +1,67 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define max 100
+#define MAX 100
 
-// Функция вывода матрицы
 void matoutput(int **matrix, int r, int c) {
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++) {
             printf("%d", matrix[i][j]);
-            if (j < c - 1)
-                printf(" ");
+            if (j < c - 1) printf(" ");
         }
-        if (i < r - 1)
-            printf("\n");
+        printf("\n");
     }
 }
 
-// Функция ввода матрицы
 int matinput(int **matrix, int r, int c) {
-    for (int i = 0; i < r; i++) {
-        for (int j = 0; j < c; j++) {
-            if (scanf("%d", &matrix[i][j]) != 1)
-                return 0;
-        }
-    }
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            if (scanf("%d", &matrix[i][j]) != 1) return 0;
     return 1;
 }
 
-// 1. Статическое выделение
+void print_array(int *arr, int size) {
+    for (int i = 0; i < size; i++) {
+        printf("%d", arr[i]);
+        if (i < size - 1) printf(" ");
+    }
+}
+
+void process_matrix(int **matrix, int r, int c) {
+    int max_rows[r];
+    int min_cols[c];
+
+    for (int i = 0; i < r; i++) {
+        max_rows[i] = matrix[i][0];
+        for (int j = 1; j < c; j++) {
+            if (matrix[i][j] > max_rows[i])
+                max_rows[i] = matrix[i][j];
+        }
+    }
+
+    for (int j = 0; j < c; j++) {
+        min_cols[j] = matrix[0][j];
+        for (int i = 1; i < r; i++) {
+            if (matrix[i][j] < min_cols[j])
+                min_cols[j] = matrix[i][j];
+        }
+    }
+
+    print_array(max_rows, r);
+    printf("\n");
+    print_array(min_cols, c);
+}
+
+// --- Статическое выделение
 void f1static() {
     int r, c;
-    if (scanf("%d %d", &r, &c) != 2 || r > max || c > max || r <= 0 || c <= 0) {
+    if (scanf("%d %d", &r, &c) != 2 || r > MAX || c > MAX || r <= 0 || c <= 0) {
         printf("n/a");
         return;
     }
 
-    static int static_matrix[max][max];
-    int *p[max];
-    for (int i = 0; i < r; i++) {
-        p[i] = static_matrix[i];
-    }
+    static int matrix[MAX][MAX];
+    int *p[MAX];
+    for (int i = 0; i < r; i++) p[i] = matrix[i];
 
     if (!matinput(p, r, c)) {
         printf("n/a");
@@ -46,9 +69,10 @@ void f1static() {
     }
 
     matoutput(p, r, c);
+    process_matrix(p, r, c);
 }
 
-// 2. Одним malloc-ом
+// --- Один malloc
 void s2method() {
     int r, c;
     if (scanf("%d %d", &r, &c) != 2 || r <= 0 || c <= 0) {
@@ -56,27 +80,28 @@ void s2method() {
         return;
     }
 
-    int **single_array_matrix = malloc(r * sizeof(int*) + r * c * sizeof(int));
-    if (!single_array_matrix) {
+    int **matrix = malloc(r * sizeof(int*) + r * c * sizeof(int));
+    if (!matrix) {
         printf("n/a");
         return;
     }
 
-    int *ptr = (int*)(single_array_matrix + r);
+    int *data = (int*)(matrix + r);
     for (int i = 0; i < r; i++)
-        single_array_matrix[i] = ptr + c * i;
+        matrix[i] = data + i * c;
 
-    if (!matinput(single_array_matrix, r, c)) {
+    if (!matinput(matrix, r, c)) {
         printf("n/a");
-        free(single_array_matrix);
+        free(matrix);
         return;
     }
 
-    matoutput(single_array_matrix, r, c);
-    free(single_array_matrix);
+    matoutput(matrix, r, c);
+    process_matrix(matrix, r, c);
+    free(matrix);
 }
 
-// 3. Отдельный malloc на каждую строку
+// --- Несколько malloc (строки отдельно)
 void t3method() {
     int r, c;
     if (scanf("%d %d", &r, &c) != 2 || r <= 0 || c <= 0) {
@@ -84,39 +109,36 @@ void t3method() {
         return;
     }
 
-    int **pointer_array = malloc(r * sizeof(int*));
-    if (!pointer_array) {
+    int **matrix = malloc(r * sizeof(int*));
+    if (!matrix) {
         printf("n/a");
         return;
     }
 
     for (int i = 0; i < r; i++) {
-        pointer_array[i] = malloc(c * sizeof(int));
-        if (!pointer_array[i]) {
-            for (int j = 0; j < i; j++)
-                free(pointer_array[j]);
-            free(pointer_array);
+        matrix[i] = malloc(c * sizeof(int));
+        if (!matrix[i]) {
+            for (int j = 0; j < i; j++) free(matrix[j]);
+            free(matrix);
             printf("n/a");
             return;
         }
     }
 
-    if (!matinput(pointer_array, r, c)) {
+    if (!matinput(matrix, r, c)) {
         printf("n/a");
-        for (int i = 0; i < r; i++)
-            free(pointer_array[i]);
-        free(pointer_array);
+        for (int i = 0; i < r; i++) free(matrix[i]);
+        free(matrix);
         return;
     }
 
-    matoutput(pointer_array, r, c);
-
-    for (int i = 0; i < r; i++)
-        free(pointer_array[i]);
-    free(pointer_array);
+    matoutput(matrix, r, c);
+    process_matrix(matrix, r, c);
+    for (int i = 0; i < r; i++) free(matrix[i]);
+    free(matrix);
 }
 
-// 4. Отдельный malloc на указатели и на данные
+// --- malloc указателей и массива значений
 void f4method() {
     int r, c;
     if (scanf("%d %d", &r, &c) != 2 || r <= 0 || c <= 0) {
@@ -124,32 +146,32 @@ void f4method() {
         return;
     }
 
-    int **pointer_array = malloc(r * sizeof(int*));
-    int *values_array = malloc(r * c * sizeof(int));
-
-    if (!pointer_array || !values_array) {
-        free(pointer_array);
-        free(values_array);
+    int **matrix = malloc(r * sizeof(int*));
+    int *values = malloc(r * c * sizeof(int));
+    if (!matrix || !values) {
+        free(matrix);
+        free(values);
         printf("n/a");
         return;
     }
 
     for (int i = 0; i < r; i++)
-        pointer_array[i] = values_array + i * c;
+        matrix[i] = values + i * c;
 
-    if (!matinput(pointer_array, r, c)) {
+    if (!matinput(matrix, r, c)) {
         printf("n/a");
-        free(values_array);
-        free(pointer_array);
+        free(values);
+        free(matrix);
         return;
     }
 
-    matoutput(pointer_array, r, c);
-    free(values_array);
-    free(pointer_array);
+    matoutput(matrix, r, c);
+    process_matrix(matrix, r, c);
+    free(values);
+    free(matrix);
 }
 
-// Меню
+// --- main
 int main() {
     int method;
     if (scanf("%d", &method) != 1 || method < 1 || method > 4) {
